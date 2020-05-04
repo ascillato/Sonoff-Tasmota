@@ -1079,17 +1079,10 @@ uint32_t Pin(uint32_t gpio, uint32_t index) ICACHE_RAM_ATTR;
 
 uint32_t Pin(uint32_t gpio, uint32_t index = 0);
 uint32_t Pin(uint32_t gpio, uint32_t index) {
-#ifdef LEGACY_GPIO_ARRAY
-  return pin_gpio[gpio + index];  // Pin number configured for gpio or 99 if not used
-#else  // No LEGACY_GPIO_ARRAY
 #ifdef ESP8266
   uint16_t real_gpio = gpio + index;
 #else  // ESP32
-#ifndef FINAL_ESP32
-  uint16_t real_gpio = gpio + index;
-#else  // FINAL_ESP32
   uint16_t real_gpio = (gpio << 5) + index;
-#endif  // FINAL_ESP32
 #endif  // ESP8266 - ESP32
   for (uint32_t i = 0; i < ARRAY_SIZE(gpio_pin); i++) {
     if (gpio_pin[i] == real_gpio) {
@@ -1097,7 +1090,6 @@ uint32_t Pin(uint32_t gpio, uint32_t index) {
     }
   }
   return 99;                 // No pin used for gpio
-#endif  // No LEGACY_GPIO_ARRAY
 }
 
 boolean PinUsed(uint32_t gpio, uint32_t index = 0);
@@ -1106,20 +1098,8 @@ boolean PinUsed(uint32_t gpio, uint32_t index) {
 }
 
 void SetPin(uint32_t lpin, uint32_t gpio) {
-#ifdef LEGACY_GPIO_ARRAY
-  pin_gpio[gpio] = lpin;
-#else
   gpio_pin[lpin] = gpio;
-#endif
 }
-
-#ifdef LEGACY_GPIO_ARRAY
-void InitAllPins(void) {
-  for (uint32_t i = 0; i < ARRAY_SIZE(pin_gpio); i++) {
-    SetPin(99, i);
-  }
-}
-#endif
 
 void DigitalWrite(uint32_t gpio_pin, uint32_t index, uint32_t state)
 {
@@ -1172,13 +1152,8 @@ void ModuleGpios(myio *gp)
   uint8_t *dest = (uint8_t *)gp;
   uint8_t src[ARRAY_SIZE(Settings.user_template.gp.io)];
 #else  // ESP32
-#ifndef FINAL_ESP32
-  uint8_t *dest = (uint8_t *)gp;
-  uint8_t src[ARRAY_SIZE(Settings.user_template.gp.io)];
-#else  // FINAL_ESP32
   uint16_t *dest = (uint16_t *)gp;
   uint16_t src[ARRAY_SIZE(Settings.user_template.gp.io)];
-#endif
 #endif  // ESP8266 - ESP32
 
   memset(dest, GPIO_NONE, sizeof(myio));
@@ -1211,24 +1186,15 @@ gpio_flag ModuleFlag(void)
 {
   gpio_flag flag;
 
-#ifdef ESP8266
   if (USER_MODULE == Settings.module) {
     flag = Settings.user_template.flag;
   } else {
+#ifdef ESP8266
     memcpy_P(&flag, &kModules[Settings.module].flag, sizeof(gpio_flag));
-  }
 #else  // ESP32
-  if (USER_MODULE == Settings.module) {
-/*
-    gpio_flag gpio_adc0;
-    memcpy_P(&gpio_adc0, &Settings.user_template.gp + ADC0_PIN - MIN_FLASH_PINS, sizeof(gpio_flag));
-    flag = Settings.user_template.flag.data + gpio_adc0.data;
-*/
-    memcpy_P(&flag, &Settings.user_template.gp + ADC0_PIN - MIN_FLASH_PINS, sizeof(gpio_flag));
-  } else {
-    memcpy_P(&flag, &kModules.gp + ADC0_PIN - MIN_FLASH_PINS, sizeof(gpio_flag));
-  }
+    memcpy_P(&flag, &kModules.flag, sizeof(gpio_flag));
 #endif  // ESP8266 - ESP32
+  }
 
   return flag;
 }
@@ -1277,29 +1243,23 @@ bool ValidGPIO(uint32_t pin, uint32_t gpio)
 #ifdef ESP8266
   return (GPIO_USER == ValidPin(pin, gpio));  // Only allow GPIO_USER pins
 #else  // ESP32
-#ifndef FINAL_ESP32
-  return (GPIO_USER == ValidPin(pin, gpio));  // Only allow GPIO_USER pins
-#else  // FINAL_ESP32
   return (GPIO_USER == ValidPin(pin, gpio >> 5));  // Only allow GPIO_USER pins
-#endif  // FINAL_ESP32
 #endif  // ESP8266 - ESP32
 }
 
+#ifdef ESP8266
 bool ValidAdc(void)
 {
   gpio_flag flag = ModuleFlag();
   uint32_t template_adc0 = flag.data &15;
   return (ADC0_USER == template_adc0);
 }
+#endif  // ESP8266
 
 #ifdef ESP8266
 bool GetUsedInModule(uint32_t val, uint8_t *arr)
 #else  // ESP32
-#ifndef FINAL_ESP32
-bool GetUsedInModule(uint32_t val, uint8_t *arr)
-#else  // FINAL_ESP32
 bool GetUsedInModule(uint32_t val, uint16_t *arr)
-#endif  // FINAL_ESP32
 #endif  // ESP8266 - ESP32
 {
   int offset = 0;
@@ -1386,11 +1346,11 @@ bool JsonTemplate(const char* dataBuf)
     }
   }
   if (obj[D_JSON_FLAG].success()) {
-    uint8_t flag = obj[D_JSON_FLAG] | 0;
+    uint32_t flag = obj[D_JSON_FLAG] | 0;
     memcpy(&Settings.user_template.flag, &flag, sizeof(gpio_flag));
   }
   if (obj[D_JSON_BASE].success()) {
-    uint8_t base = obj[D_JSON_BASE];
+    uint32_t base = obj[D_JSON_BASE];
     if ((0 == base) || !ValidTemplateModule(base -1)) { base = 18; }
     Settings.user_template_base = base -1;  // Default WEMOS
   }
