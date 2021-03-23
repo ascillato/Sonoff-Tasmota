@@ -1,7 +1,7 @@
 /*
   xdrv_12_home_assistant.ino - home assistant support for Tasmota
 
-  Copyright (C) 2021  Erik Montnemery, Federico Leoni and Theo Arends
+  Copyright (C) 2021  Erik Montnemery, Federico Leoni, Adrian Scillato and Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -108,6 +108,12 @@ const char HASS_DISCOVER_LIGHT_SCHEME[] PROGMEM =
   "\"fx_stat_t\":\"%s\","                         // stat/led2/RESULT
   "\"fx_val_tpl\":\"{{value_json." D_CMND_SCHEME "}}\","
   "\"fx_list\":[\"0\",\"1\",\"2\",\"3\",\"4\"]";  // string list with reference to scheme parameter.
+
+const char HASS_DISCOVER_LIGHT_SCHEME_WS2812[] PROGMEM =
+  ",\"fx_cmd_t\":\"%s\","                         // cmnd/led2/Scheme
+  "\"fx_stat_t\":\"%s\","                         // stat/led2/RESULT
+  "\"fx_val_tpl\":\"{{value_json." D_CMND_SCHEME "}}\","
+  "\"fx_list\":[\"0\",\"1\",\"2\",\"3\",\"4\",\"5\",\"6\",\"7\",\"8\",\"9\"\"10\",\"11\",\"12\"]";  // string list with reference to scheme parameter.
 
 const char HASS_DISCOVER_SHUTTER_BASE[] PROGMEM =
   ",\"cmd_t\":\"%s\","                            // cmnd/%topic%/Backlog
@@ -523,7 +529,11 @@ void HAssAnnounceRelayLight(void)
 
               char *effect_command_topic = stemp1;
               GetTopic_P(effect_command_topic, CMND, TasmotaGlobal.mqtt_topic, D_CMND_SCHEME);
-              TryResponseAppend_P(HASS_DISCOVER_LIGHT_SCHEME, effect_command_topic, state_topic);
+              if (TasmotaGlobal.light_type >= LT_RGB) {  // WS2812 or RGB led
+                TryResponseAppend_P(HASS_DISCOVER_LIGHT_SCHEME_WS2812, effect_command_topic, state_topic);
+              } else {
+                TryResponseAppend_P(HASS_DISCOVER_LIGHT_SCHEME, effect_command_topic, state_topic);
+              }
             }
             if (LST_RGBW <= Light.subtype) { wt_light = true; }
             if (LST_RGBCW == Light.subtype) { ct_light = true; }
